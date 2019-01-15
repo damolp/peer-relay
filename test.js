@@ -1,8 +1,7 @@
 var assert = require('assert')
 var Client = require('./lib/client')
-var wrtc = require('electron-webrtc')()
+var wrtc = require('wrtc')
 
-wrtc.on('error', function (err) { console.error(err, err.stack) })
 
 describe('End to End', function () {
   var clients = []
@@ -120,7 +119,7 @@ describe('End to End', function () {
   })
 
   it('clients automatically populate', function (done) {
-    // c1 <-> c2 <-> c3
+     // c1 <-> c2 <-> c3
     var c2 = startClient({ port: 8002, bootstrap: [] })
     var c1 = startClient({ port: 8001, bootstrap: ['ws://localhost:8002'] })
     var c3 = startClient({ port: 8003, bootstrap: ['ws://localhost:8002'] })
@@ -130,7 +129,7 @@ describe('End to End', function () {
 
     c1.on('peer', function (id) {
       if (id.equals(c2.id)) {
-        // c1.connect(c3.id)
+        c1.connect(c3.id)
       } else if (id.equals(c3.id)) {
         c1PeerEvent = true
         c1.disconnect(c2.id)
@@ -154,59 +153,78 @@ describe('End to End', function () {
     })
   })
 
-  // it('webrtc connect and send message', function (done) {
-  //   // c1 <-> c2 <-> c3
-  //   var c2 = startClient({ port: 8002, bootstrap: [] })
-  //   var c1 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
-  //   var c3 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
+  it('webrtc connect and send message', function (done) {
+      // c1 <-> c2 <-> c3
+     var c2 = startClient({ port: 8002, bootstrap: [] })
+     var c1 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
+     var c3 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
 
-  //   c1.on('peer', function (id) {
-  //     assert.ok(id.equals(c2.id) || id.equals(c3.id))
-  //     if (id.equals(c3.id)) c1.send(c3.id, 'TEST')
-  //   })
+     c1.on('peer', function (id) {
+       assert.ok(id.equals(c2.id) || id.equals(c3.id))
+       if (id.equals(c3.id)) c1.send(c3.id, 'TEST')
+     })
 
-  //   c3.on('message', function (msg, id) {
-  //     assert.ok(id.equals(c1.id))
-  //     assert.equal(msg, 'TEST')
-  //     done()
-  //   })
-  // })
+     c3.on('message', function (msg, id) {
+       assert.ok(id.equals(c1.id))
+       assert.equal(msg, 'TEST')
+       done()
+     })
+   })
 
-  // it('relay chain', function (done) {
-  //   var peers = []
-  //   for (var i = 0; i < 10; i++) {
-  //     peers.push(startClient({
-  //       port: 8000 + i,
-  //       bootstrap: i === 0 ? [] : ['ws://localhost:' + (8000 + i - 1)]
-  //     }))
-  //   }
+  it('webrtc connect and send huge payload (10MB)', function (done) {
+      // c1 <-> c2 <-> c3
+     var c2 = startClient({ port: 8002, bootstrap: [] })
+     var c1 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
+     var c3 = startClient({ wrtc: wrtc, bootstrap: ['ws://localhost:8002'] })
+     length = 10 * 1024 * 1024 // 10 mb
 
-  //   var first = peers[0]
-  //   var last = peers[peers.length - 1]
+     c1.on('peer', function (id) {
+       assert.ok(id.equals(c2.id) || id.equals(c3.id))
+       if (id.equals(c3.id)) c1.send(c3.id, 'A'.repeat(length))
+     })
 
-  //   last.on('message', function (msg, id) {
-  //     assert.ok(id.equals(first.id))
-  //     assert.equal('TEST', msg)
-  //     done()
-  //   })
+     c3.on('message', function (msg, id) {
+       assert.ok(id.equals(c1.id))
+       assert.equal(msg, 'A'.repeat(length))
+       done()
+     })
+   })
 
-  //   onBootstrap(peers, function () {
-  //     first.send(last.id, 'TEST')
-  //   })
-  // })
+  it('relay chain down 10 nodes', function (done) {
+     var peers = []
+     for (var i = 0; i < 10; i++) {
+       peers.push(startClient({
+         port: 8000 + i,
+         bootstrap: i === 0 ? [] : ['ws://localhost:' + (8000 + i - 1)]
+       }))
+     }
+
+     var first = peers[0]
+     var last = peers[peers.length - 1]
+
+     last.on('message', function (msg, id) {
+       assert.ok(id.equals(first.id))
+       assert.equal('TEST', msg)
+       done()
+     })
+
+     onBootstrap(peers, function () {
+       first.send(last.id, 'TEST')
+     })
+   })
 })
 
-// function onBootstrap (peers, cb) {
-//   for (var p of peers) {
-//     p.on('peer', function () {
-//       if (isBootstrapped()) cb()
-//     })
-//   }
-//
-//   function isBootstrapped () {
-//     for (var p of peers) {
-//       if (p.peers.count() === 0) return false
-//     }
-//     return true
-//   }
-// }
+function onBootstrap (peers, cb) {
+   for (var p of peers) {
+     p.on('peer', function () {
+       if (isBootstrapped()) cb()
+     })
+   }
+
+   function isBootstrapped () {
+     for (var p of peers) {
+       if (p.peers.count() === 0) return false
+     }
+     return true
+   }
+ }

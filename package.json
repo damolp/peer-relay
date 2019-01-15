@@ -5,7 +5,7 @@
   "main": "index.js",
   "bin": "server.js",
   "scripts": {
-    "test": "standard && mocha test.js --use-strict --timeout 10000",
+    "test": "mocha test.js --use-strict --timeout 10000",
     "bundle": "browserify index.js -s PeerRelay -d -o bundle.js -i ws",
     "prepublish": "npm run -s bundle",
     "standard": "standard",
@@ -23,13 +23,15 @@
   "license": "MIT",
   "dependencies": {
     "debug": "^2.2.0",
+    "domexception": "^1.0.1",
     "k-bucket": "^3.0.2",
+    "protobufjs": "^6.8.8",
     "simple-peer": "^6.0.4",
     "ws": "^1.1.1"
   },
   "devDependencies": {
     "browserify": "^13.1.0",
-    "electron-webrtc": "^0.2.7",
+    "wrtc": "^0.3.4",
     "mocha": "^2.5.3",
     "standard": "^7.1.2"
   }
